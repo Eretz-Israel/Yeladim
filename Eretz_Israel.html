@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/MarkerCluster.css">
+        <link rel="stylesheet" href="css/MarkerCluster.Default.css">
+        <link rel="stylesheet" href="css/leaflet-control-geocoder.Geocoder.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title></title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/multi-style-layer.js"></script>
+        <script src="js/leaflet-svg-shape-markers.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet-control-geocoder.Geocoder.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="js/leaflet.markercluster.js"></script>
+        <script src="data/Rutas_1.js"></script>
+        <script src="data/Orografa_2.js"></script>
+        <script src="data/Israel_Antiguo_3.js"></script>
+        <script src="data/Ciudades_4.js"></script>
+        <script src="data/Cuerpos_De_Agua_5.js"></script>
+        <script src="data/Israel_6.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#ffff00',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#ffff00',
+                fillOpacity: 1
+              });
+            }
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        })
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+            if (bounds_group.getLayers().length) {
+                map.fitBounds(bounds_group.getBounds());
+            }
+        }
+        map.createPane('pane_GoogleSatellite_0');
+        map.getPane('pane_GoogleSatellite_0').style.zIndex = 400;
+        var layer_GoogleSatellite_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatellite_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleSatellite_0;
+        map.addLayer(layer_GoogleSatellite_0);
+        function pop_Rutas_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(feature.properties['fid'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Distancia'] !== null ? autolinker.link(feature.properties['Distancia'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Multimedia'] !== null ? autolinker.link(feature.properties['Multimedia'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Rutas_1_0() {
+            return {
+                pane: 'pane_Rutas_1',
+                opacity: 1,
+                color: 'rgba(250,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+        }
+        function style_Rutas_1_1() {
+            return {
+                pane: 'pane_Rutas_1',
+                opacity: 1,
+                color: 'rgba(255,190,184,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+        }
+        map.createPane('pane_Rutas_1');
+        map.getPane('pane_Rutas_1').style.zIndex = 401;
+        map.getPane('pane_Rutas_1').style['mix-blend-mode'] = 'normal';
+        var layer_Rutas_1 = new L.geoJson.multiStyle(json_Rutas_1, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_Rutas_1',
+            layerName: 'layer_Rutas_1',
+            pane: 'pane_Rutas_1',
+            onEachFeature: pop_Rutas_1,
+            styles: [style_Rutas_1_0,style_Rutas_1_1,]
+        });
+        bounds_group.addLayer(layer_Rutas_1);
+        map.addLayer(layer_Rutas_1);
+        function pop_Orografa_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(feature.properties['fid'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td>' + (feature.properties['Nombre'] !== null ? autolinker.link(feature.properties['Nombre'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Video</th>\
+                        <td>' + (feature.properties['Multimedia'] !== null ? autolinker.link(feature.properties['Multimedia'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Orografa_2_0() {
+            return {
+                pane: 'pane_Orografa_2',
+                shape: 'triangle',
+                radius: 8.0,
+                opacity: 1,
+                color: 'rgba(61,128,53,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(84,176,74,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Orografa_2');
+        map.getPane('pane_Orografa_2').style.zIndex = 402;
+        map.getPane('pane_Orografa_2').style['mix-blend-mode'] = 'normal';
+        var layer_Orografa_2 = new L.geoJson(json_Orografa_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Orografa_2',
+            layerName: 'layer_Orografa_2',
+            pane: 'pane_Orografa_2',
+            onEachFeature: pop_Orografa_2,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.shapeMarker(latlng, style_Orografa_2_0(feature));
+            },
+        });
+        var cluster_Orografa_2 = new L.MarkerClusterGroup({showCoverageOnHover: false,
+            spiderfyDistanceMultiplier: 2});
+        cluster_Orografa_2.addLayer(layer_Orografa_2);
+
+        bounds_group.addLayer(layer_Orografa_2);
+        cluster_Orografa_2.addTo(map);
+        function pop_Israel_Antiguo_3(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(feature.properties['fid'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Tribu</th>\
+                        <td>' + (feature.properties['Tribu'] !== null ? autolinker.link(feature.properties['Tribu'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Israel_Antiguo_3_0(feature) {
+            switch(String(feature.properties['Tribu'])) {
+                default:
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(184,95,236,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Aser':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(225,223,121,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Dan':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(216,122,21,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Efraím':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(225,14,56,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Gad':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,74,137,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Isacar':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(124,234,221,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Juda':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(230,221,120,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'manases':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(138,107,23,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Mar Muerto':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(134,19,183,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Neftaly':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(32,126,131,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Ruben':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(27,85,148,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Simeón':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(206,119,14,0.7)',
+                interactive: true,
+            }
+                    break;
+                case 'Zabulon':
+                    return {
+                pane: 'pane_Israel_Antiguo_3',
+                opacity: 1,
+                color: 'rgba(247,247,247,0.7)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(66,83,238,0.7)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_Israel_Antiguo_3');
+        map.getPane('pane_Israel_Antiguo_3').style.zIndex = 403;
+        map.getPane('pane_Israel_Antiguo_3').style['mix-blend-mode'] = 'normal';
+        var layer_Israel_Antiguo_3 = new L.geoJson(json_Israel_Antiguo_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Israel_Antiguo_3',
+            layerName: 'layer_Israel_Antiguo_3',
+            pane: 'pane_Israel_Antiguo_3',
+            onEachFeature: pop_Israel_Antiguo_3,
+            style: style_Israel_Antiguo_3_0,
+        });
+        bounds_group.addLayer(layer_Israel_Antiguo_3);
+        function pop_Ciudades_4(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(feature.properties['fid'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">NOMBRE</th>\
+                        <td>' + (feature.properties['Nombre'] !== null ? autolinker.link(feature.properties['Nombre'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Tipo'] !== null ? autolinker.link(feature.properties['Tipo'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">VIDEO</th>\
+                        <td>' + (feature.properties['Multimedia'] !== null ? autolinker.link(feature.properties['Multimedia'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Ciudades_4_0() {
+            return {
+                pane: 'pane_Ciudades_4',
+        rotationAngle: 0.0,
+        rotationOrigin: 'center center',
+        icon: L.icon({
+            iconUrl: 'markers/Ciudades_4.svg',
+            iconSize: [23.56, 23.56]
+        }),
+                interactive: true,
+            }
+        }
+        function style_Ciudades_4_1() {
+            return {
+                pane: 'pane_Ciudades_4',
+        rotationAngle: 0.0,
+        rotationOrigin: 'center center',
+        icon: L.icon({
+            iconUrl: 'markers/Ciudades_4.svg',
+            iconSize: [15.2, 15.2]
+        }),
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Ciudades_4');
+        map.getPane('pane_Ciudades_4').style.zIndex = 404;
+        map.getPane('pane_Ciudades_4').style['mix-blend-mode'] = 'normal';
+        var layer_Ciudades_4 = new L.geoJson.multiStyle(json_Ciudades_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Ciudades_4',
+            layerName: 'layer_Ciudades_4',
+            pane: 'pane_Ciudades_4',
+            onEachFeature: pop_Ciudades_4,
+            pointToLayers: [function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.marker(latlng, style_Ciudades_4_0(feature));
+            },function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.marker(latlng, style_Ciudades_4_1(feature));
+            },
+        ]});
+        var cluster_Ciudades_4 = new L.MarkerClusterGroup({showCoverageOnHover: false,
+            spiderfyDistanceMultiplier: 2});
+        cluster_Ciudades_4.addLayer(layer_Ciudades_4);
+
+        bounds_group.addLayer(layer_Ciudades_4);
+        cluster_Ciudades_4.addTo(map);
+        function pop_Cuerpos_De_Agua_5(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(feature.properties['fid'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td>' + (feature.properties['Nombre'] !== null ? autolinker.link(feature.properties['Nombre'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['area'] !== null ? autolinker.link(feature.properties['area'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Video</th>\
+                        <td>' + (feature.properties['Observación'] !== null ? autolinker.link(feature.properties['Observación'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Cuerpos_De_Agua_5_0() {
+            return {
+                pane: 'pane_Cuerpos_De_Agua_5',
+                interactive: true,
+            }
+        }
+        function style_Cuerpos_De_Agua_5_1() {
+            return {
+                pane: 'pane_Cuerpos_De_Agua_5',
+                opacity: 1,
+                color: 'rgba(38,89,128,0.6)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Cuerpos_De_Agua_5');
+        map.getPane('pane_Cuerpos_De_Agua_5').style.zIndex = 405;
+        map.getPane('pane_Cuerpos_De_Agua_5').style['mix-blend-mode'] = 'normal';
+        var layer_Cuerpos_De_Agua_5 = new L.geoJson.multiStyle(json_Cuerpos_De_Agua_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Cuerpos_De_Agua_5',
+            layerName: 'layer_Cuerpos_De_Agua_5',
+            pane: 'pane_Cuerpos_De_Agua_5',
+            onEachFeature: pop_Cuerpos_De_Agua_5,
+            styles: [style_Cuerpos_De_Agua_5_0,style_Cuerpos_De_Agua_5_1,]
+        });
+        bounds_group.addLayer(layer_Cuerpos_De_Agua_5);
+        map.addLayer(layer_Cuerpos_De_Agua_5);
+        function pop_Israel_6(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(feature.properties['fid'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Nombre</th>\
+                        <td>' + (feature.properties['Nombre'] !== null ? autolinker.link(feature.properties['Nombre'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Capital</th>\
+                        <td>' + (feature.properties['Capital'] !== null ? autolinker.link(feature.properties['Capital'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Relación'] !== null ? autolinker.link(feature.properties['Relación'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['area'] !== null ? autolinker.link(feature.properties['area'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Observación</th>\
+                        <td>' + (feature.properties['Observación'] !== null ? autolinker.link(feature.properties['Observación'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Israel_6_0() {
+            return {
+                pane: 'pane_Israel_6',
+                opacity: 1,
+                color: 'rgba(227,106,1,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 5.0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+        }
+        map.createPane('pane_Israel_6');
+        map.getPane('pane_Israel_6').style.zIndex = 406;
+        map.getPane('pane_Israel_6').style['mix-blend-mode'] = 'normal';
+        var layer_Israel_6 = new L.geoJson(json_Israel_6, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_Israel_6',
+            layerName: 'layer_Israel_6',
+            pane: 'pane_Israel_6',
+            onEachFeature: pop_Israel_6,
+            style: style_Israel_6_0,
+        });
+        bounds_group.addLayer(layer_Israel_6);
+        map.addLayer(layer_Israel_6);
+        var osmGeocoder = new L.Control.Geocoder({
+            collapsed: true,
+            position: 'topleft',
+            text: 'Search',
+            title: 'Testing'
+        }).addTo(map);
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .className += ' fa fa-search';
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .title += 'Search for a place';
+        var overlaysTree = [
+            {label: '<img src="legend/Israel_6.png" /> Israel', layer: layer_Israel_6},
+            {label: '<img src="legend/Cuerpos_De_Agua_5.png" /> Cuerpos_De_Agua', layer: layer_Cuerpos_De_Agua_5},
+            {label: '<img src="legend/Ciudades_4.png" /> Ciudades', layer: cluster_Ciudades_4},
+            {label: 'Israel_Antiguo<br /><table><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_0.png" /></td><td></td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Aser1.png" /></td><td>Aser</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Dan2.png" /></td><td>Dan</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Efraím3.png" /></td><td>Efraím</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Gad4.png" /></td><td>Gad</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Isacar5.png" /></td><td>Isacar</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Juda6.png" /></td><td>Juda</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_manases7.png" /></td><td>manases</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_MarMuerto8.png" /></td><td>Mar Muerto</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Neftaly9.png" /></td><td>Neftaly</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Ruben10.png" /></td><td>Ruben</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Simeón11.png" /></td><td>Simeón</td></tr><tr><td style="text-align: center;"><img src="legend/Israel_Antiguo_3_Zabulon12.png" /></td><td>Zabulon</td></tr></table>', layer: layer_Israel_Antiguo_3},
+            {label: '<img src="legend/Orografa_2.png" /> Orografía', layer: cluster_Orografa_2},
+            {label: '<img src="legend/Rutas_1.png" /> Rutas', layer: layer_Rutas_1},
+            {label: "Google Satellite", layer: layer_GoogleSatellite_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        var i = 0;
+        layer_Orografa_2.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['Nombre'] !== null?String('<div style="color: #00c02a; font-size: 9pt; font-weight: bold; font-style: italic; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['Nombre']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_Orografa_2'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        var i = 0;
+        layer_Israel_Antiguo_3.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['Tribu'] !== null?String('<div style="color: #323232; font-size: 10pt; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['Tribu']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_Israel_Antiguo_3'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        var i = 0;
+        layer_Ciudades_4.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['Nombre'] !== null?String('<div style="color: #090202; font-size: 8pt; font-weight: bold; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['Nombre']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_Ciudades_4'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        var i = 0;
+        layer_Cuerpos_De_Agua_5.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['Nombre'] !== null?String('<div style="color: #032ff5; font-size: 10pt; font-weight: bold; font-style: italic; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['Nombre']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_Cuerpos_De_Agua_5'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        var i = 0;
+        layer_Israel_6.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['Nombre'] !== null?String('<div style="color: #01fffb; font-size: 14pt; font-weight: bold; font-style: italic; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['Nombre']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_Israel_6'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        resetLabels([layer_Orografa_2,layer_Israel_Antiguo_3,layer_Ciudades_4,layer_Cuerpos_De_Agua_5,layer_Israel_6]);
+        map.on("zoomend", function(){
+            resetLabels([layer_Orografa_2,layer_Israel_Antiguo_3,layer_Ciudades_4,layer_Cuerpos_De_Agua_5,layer_Israel_6]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_Orografa_2,layer_Israel_Antiguo_3,layer_Ciudades_4,layer_Cuerpos_De_Agua_5,layer_Israel_6]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_Orografa_2,layer_Israel_Antiguo_3,layer_Ciudades_4,layer_Cuerpos_De_Agua_5,layer_Israel_6]);
+        });
+        </script>
+    </body>
+</html>
